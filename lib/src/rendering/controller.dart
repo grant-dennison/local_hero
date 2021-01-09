@@ -29,9 +29,9 @@ class LocalHeroController {
   final LayerLink link;
 
   final AnimationController _controller;
-  Animation<Rect> _animation;
+  Animation<Size> _animation;
   Animation<Matrix4> _matrixAnimation;
-  Rect _lastRect;
+  Size _lastSize;
   Matrix4 _lastMatrix;
 
   Curve curve;
@@ -47,10 +47,9 @@ class LocalHeroController {
 
   Animation<double> get view => _controller.view;
 
-  Offset get linkedOffset => _animation?.value?.topLeft ?? _lastRect.topLeft;
   Matrix4 get linkedMatrix => _matrixAnimation?.value ?? Matrix4.identity();
 
-  Size get linkedSize => _animation?.value?.size ?? _lastRect?.size;
+  Size get linkedSize => _animation?.value ?? _lastSize;
 
   void _onAnimationStatusChanged(AnimationStatus status) {
     if (status == AnimationStatus.completed) {
@@ -63,43 +62,19 @@ class LocalHeroController {
 
   // This seems to be invoked in an odd way.
   // Seems like it is relying on the relative paint order of different LocalHeros
-  void animateIfNeeded(Rect rect, Matrix4 matrix) {
-    if (_lastRect != null && _lastRect != rect) {
+  void animateIfNeeded(Size size, Matrix4 matrix) {
+    if (_lastSize != null && _lastSize != size) {
       final bool inAnimation = isAnimating;
-      Rect from = Rect.fromLTWH(
-        _lastRect.left - rect.left,
-        _lastRect.top - rect.top,
-        _lastRect.width,
-        _lastRect.height,
-      );
+      Size from = _animation?.value ?? _lastSize;
       Matrix4 fromMatrix = matrix
         ..invert()
-        ..multiply(_lastMatrix);
-      if (inAnimation) {
-        // We need to recompute the from.
-        final Rect currentRect = _animation.value;
-        from = Rect.fromLTWH(
-          currentRect.left + _lastRect.left - rect.left,
-          currentRect.top + _lastRect.top - rect.top,
-          currentRect.width,
-          currentRect.height,
-        );
-      }
+        ..multiply(_lastMatrix
+          ..multiply(_matrixAnimation?.value ?? Matrix4.identity()));
       _isAnimating = true;
 
-      _animation = _controller.drive(CurveTween(curve: curve)).drive(
-            createRectTween(
-              from,
-              Rect.fromLTWH(
-                0,
-                0,
-                rect.width,
-                rect.height,
-              ),
-            ),
-          );
-      _matrixAnimation = _controller
-          .drive(CurveTween(curve: curve))
+      final curveAnimation = _controller.drive(CurveTween(curve: curve));
+      _animation = curveAnimation.drive(SizeTween(begin: from, end: size));
+      _matrixAnimation = curveAnimation
           .drive(Matrix4Tween(begin: fromMatrix, end: Matrix4.identity()));
 
       if (!inAnimation) {
@@ -118,7 +93,7 @@ class LocalHeroController {
         });
       }
     }
-    _lastRect = rect;
+    _lastSize = size;
     _lastMatrix = matrix;
   }
 

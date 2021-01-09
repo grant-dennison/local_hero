@@ -47,9 +47,8 @@ class RenderLocalHeroLeaderLayer extends RenderProxyBox {
 
   @override
   void paint(PaintingContext context, Offset offset) {
-    final Rect rect = Rect.fromPoints(offset, size.bottomRight(offset));
     final Matrix4 matrix = getTransformTo(null);
-    _controller.animateIfNeeded(rect, matrix);
+    _controller.animateIfNeeded(size, matrix);
 
     if (layer == null) {
       layer = LeaderLayer(link: controller.link, offset: offset);

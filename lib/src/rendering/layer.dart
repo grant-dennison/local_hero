@@ -35,6 +35,7 @@ class LocalHeroLayer extends ContainerLayer {
   Offset _transformOffset<S>(Offset localPosition) {
     if (_inverseDirty) {
       _invertedTransform = Matrix4.tryInvert(getLastTransform());
+      _invertedTransform.multiply(Matrix4.tryInvert(controller.linkedMatrix));
       _inverseDirty = false;
     }
     if (_invertedTransform == null) {
@@ -43,8 +44,8 @@ class LocalHeroLayer extends ContainerLayer {
     final Vector4 vector = Vector4(localPosition.dx, localPosition.dy, 0, 1);
     final Vector4 result = _invertedTransform.transform(vector);
     return Offset(
-      result[0] - controller.linkedOffset.dx,
-      result[1] - controller.linkedOffset.dy,
+      result[0],
+      result[1],
     );
   }
 
@@ -145,12 +146,7 @@ class LocalHeroLayer extends ContainerLayer {
     }
     // Combine the matrices and store the result.
     inverseTransform.multiply(forwardTransform);
-    // final Matrix4Tween t = Matrix4Tween(begin: inverseTransform, end: )
     inverseTransform.multiply(controller.linkedMatrix);
-    // inverseTransform.translate(
-    //   controller.linkedOffset.dx,
-    //   controller.linkedOffset.dy,
-    // );
     _lastTransform = inverseTransform;
     _inverseDirty = true;
   }
