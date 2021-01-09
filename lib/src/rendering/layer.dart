@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/widgets.dart';
 import 'package:local_hero/src/rendering/controller.dart';
 import 'package:vector_math/vector_math_64.dart';
 
@@ -114,20 +115,25 @@ class LocalHeroLayer extends ContainerLayer {
     }
     // Collect all the layers from a hypothetical child (null) of the target
     // layer up to the common ancestor layer.
-    ContainerLayer layer = controller.link.leader;
-    final List<ContainerLayer> forwardLayers = <ContainerLayer>[null, layer];
+    ContainerLayer layerFromTarget = controller.link.leader;
+    final List<ContainerLayer> forwardLayers = <ContainerLayer>[
+      null,
+      layerFromTarget
+    ];
     do {
-      layer = layer.parent;
-      forwardLayers.add(layer);
-    } while (!ancestors.contains(layer));
-    ancestor = layer;
+      layerFromTarget = layerFromTarget.parent;
+      forwardLayers.add(layerFromTarget);
+    } while (!ancestors.contains(layerFromTarget));
+    final Layer commonAncestor = layerFromTarget;
     // Collect all the layers from this layer up to the common ancestor layer.
-    layer = this;
-    final List<ContainerLayer> inverseLayers = <ContainerLayer>[layer];
+    ContainerLayer layerFromMe = this;
+    final List<ContainerLayer> inverseLayers = <ContainerLayer>[
+      layerFromTarget
+    ];
     do {
-      layer = layer.parent;
-      inverseLayers.add(layer);
-    } while (layer != ancestor);
+      layerFromMe = layerFromMe.parent;
+      inverseLayers.add(layerFromMe);
+    } while (layerFromMe != commonAncestor);
     // Establish the forward and backward matrices given these lists of layers.
     final Matrix4 forwardTransform =
         _collectTransformForLayerChain(forwardLayers);
@@ -139,10 +145,12 @@ class LocalHeroLayer extends ContainerLayer {
     }
     // Combine the matrices and store the result.
     inverseTransform.multiply(forwardTransform);
-    inverseTransform.translate(
-      controller.linkedOffset.dx,
-      controller.linkedOffset.dy,
-    );
+    // final Matrix4Tween t = Matrix4Tween(begin: inverseTransform, end: )
+    inverseTransform.multiply(controller.linkedMatrix);
+    // inverseTransform.translate(
+    //   controller.linkedOffset.dx,
+    //   controller.linkedOffset.dy,
+    // );
     _lastTransform = inverseTransform;
     _inverseDirty = true;
   }

@@ -2,6 +2,7 @@ import 'package:flutter/animation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/widgets.dart';
 
 // ignore_for_file: public_member_api_docs
 
@@ -18,18 +19,20 @@ class LocalHeroController {
     @required this.tag,
   })  : assert(createRectTween != null),
         assert(tag != null),
-        link = LayerLink() {
-    _controller = AnimationController(vsync: vsync, duration: duration)
-      ..addStatusListener(_onAnimationStatusChanged);
+        link = LayerLink(),
+        _controller = AnimationController(vsync: vsync, duration: duration) {
+    _controller.addStatusListener(_onAnimationStatusChanged);
   }
 
   final Object tag;
 
   final LayerLink link;
 
-  AnimationController _controller;
+  final AnimationController _controller;
   Animation<Rect> _animation;
+  Animation<Matrix4> _matrixAnimation;
   Rect _lastRect;
+  Matrix4 _lastMatrix;
 
   Curve curve;
   RectTweenSupplier createRectTween;
@@ -45,6 +48,7 @@ class LocalHeroController {
   Animation<double> get view => _controller.view;
 
   Offset get linkedOffset => _animation?.value?.topLeft ?? _lastRect.topLeft;
+  Matrix4 get linkedMatrix => _matrixAnimation?.value ?? Matrix4.identity();
 
   Size get linkedSize => _animation?.value?.size ?? _lastRect?.size;
 
@@ -52,11 +56,14 @@ class LocalHeroController {
     if (status == AnimationStatus.completed) {
       _isAnimating = false;
       _animation = null;
+      _matrixAnimation = null;
       _controller.value = 0;
     }
   }
 
-  void animateIfNeeded(Rect rect) {
+  // This seems to be invoked in an odd way.
+  // Seems like it is relying on the relative paint order of different LocalHeros
+  void animateIfNeeded(Rect rect, Matrix4 matrix) {
     if (_lastRect != null && _lastRect != rect) {
       final bool inAnimation = isAnimating;
       Rect from = Rect.fromLTWH(
@@ -65,6 +72,9 @@ class LocalHeroController {
         _lastRect.width,
         _lastRect.height,
       );
+      Matrix4 fromMatrix = matrix
+        ..invert()
+        ..multiply(_lastMatrix);
       if (inAnimation) {
         // We need to recompute the from.
         final Rect currentRect = _animation.value;
@@ -88,6 +98,9 @@ class LocalHeroController {
               ),
             ),
           );
+      _matrixAnimation = _controller
+          .drive(CurveTween(curve: curve))
+          .drive(Matrix4Tween(begin: fromMatrix, end: Matrix4.identity()));
 
       if (!inAnimation) {
         SchedulerBinding.instance.addPostFrameCallback((_) {
@@ -106,6 +119,7 @@ class LocalHeroController {
       }
     }
     _lastRect = rect;
+    _lastMatrix = matrix;
   }
 
   void dispose() {

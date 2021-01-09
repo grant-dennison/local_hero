@@ -48,7 +48,8 @@ class RenderLocalHeroLeaderLayer extends RenderProxyBox {
   @override
   void paint(PaintingContext context, Offset offset) {
     final Rect rect = Rect.fromPoints(offset, size.bottomRight(offset));
-    _controller.animateIfNeeded(rect);
+    final Matrix4 matrix = getTransformTo(null);
+    _controller.animateIfNeeded(rect, matrix);
 
     if (layer == null) {
       layer = LeaderLayer(link: controller.link, offset: offset);
@@ -127,7 +128,8 @@ class RenderLocalHeroFollowerLayer extends RenderProxyBox {
   /// [FollowerLayer.getLastTransform]), this returns the identity matrix (see
   /// [new Matrix4.identity].
   Matrix4 getCurrentTransform() {
-    return layer?.getLastTransform() ?? Matrix4.identity();
+    // return (layer?.getLastTransform() ?? Matrix4.identity())..translate(32);
+    return Matrix4.identity();
   }
 
   @override
