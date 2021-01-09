@@ -73,6 +73,13 @@ class _LocalHeroState extends State<LocalHero>
   }
 
   @override
+  void didUpdateWidget(covariant LocalHero oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    scopeState.untrack(oldWidget);
+    controller = scopeState.track(context, widget);
+  }
+
+  @override
   void dispose() {
     scopeState.untrack(widget);
     super.dispose();
