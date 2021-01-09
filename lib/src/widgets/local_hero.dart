@@ -75,8 +75,8 @@ class _LocalHeroState extends State<LocalHero>
   @override
   void didUpdateWidget(covariant LocalHero oldWidget) {
     super.didUpdateWidget(oldWidget);
-    scopeState.untrack(oldWidget);
     controller = scopeState.track(context, widget);
+    scopeState.untrack(oldWidget);
   }
 
   @override

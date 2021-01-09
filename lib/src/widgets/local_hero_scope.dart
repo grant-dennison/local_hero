@@ -54,39 +54,26 @@ class _LocalHeroScopeState extends State<LocalHeroScope>
   LocalHeroController track(BuildContext context, LocalHero localHero) {
     final _LocalHeroTracker tracker = trackers.putIfAbsent(
       localHero.tag,
-      () => createTracker(context, localHero),
+      () => createTracker(localHero.tag),
     );
-    tracker.count++;
+    tracker.trackedList.add(_TrackedLocalHero(
+      localHero: localHero,
+      context: context,
+    ));
     return tracker.controller;
   }
 
-  _LocalHeroTracker createTracker(BuildContext context, LocalHero localHero) {
+  _LocalHeroTracker createTracker(Object tag) {
     final LocalHeroController controller = LocalHeroController(
       duration: widget.duration,
       createRectTween: widget.createRectTween,
       curve: widget.curve,
-      tag: localHero.tag,
+      tag: tag,
       vsync: this,
-    );
-    final Widget shuttle = localHero.flightShuttleBuilder?.call(
-          context,
-          controller.view,
-          localHero.child,
-        ) ??
-        localHero.child;
-
-    final OverlayEntry overlayEntry = OverlayEntry(
-      builder: (context) {
-        return LocalHeroFollower(
-          controller: controller,
-          child: shuttle,
-        );
-      },
     );
 
     final _LocalHeroTracker tracker = _LocalHeroTracker(
       controller: controller,
-      overlayEntry: overlayEntry,
     );
 
     tracker.addOverlay(context);
@@ -97,8 +84,9 @@ class _LocalHeroScopeState extends State<LocalHeroScope>
   void untrack(LocalHero localHero) {
     final _LocalHeroTracker tracker = trackers[localHero.tag];
     if (tracker != null) {
-      tracker.count--;
-      if (tracker.count == 0) {
+      tracker.trackedList
+          .removeWhere((element) => element.localHero == localHero);
+      if (tracker.trackedList.isEmpty) {
         trackers.remove(localHero.tag);
         disposeTracker(tracker);
       }
@@ -125,6 +113,13 @@ class _LocalHeroScopeState extends State<LocalHeroScope>
   }
 }
 
+class _TrackedLocalHero {
+  LocalHero localHero;
+  BuildContext context;
+
+  _TrackedLocalHero({this.localHero, this.context});
+}
+
 abstract class LocalHeroScopeState {
   LocalHeroController track(BuildContext context, LocalHero localHero);
 
@@ -133,24 +128,46 @@ abstract class LocalHeroScopeState {
 
 class _LocalHeroTracker {
   _LocalHeroTracker({
-    @required this.overlayEntry,
     @required this.controller,
-  })  : assert(overlayEntry != null),
-        assert(controller != null);
+  }) : assert(controller != null) {
+    _overlayEntry = OverlayEntry(
+      builder: _buildOverlayWidget,
+    );
+  }
 
-  final OverlayEntry overlayEntry;
+  OverlayEntry _overlayEntry;
   final LocalHeroController controller;
-  int count = 0;
+  final List<_TrackedLocalHero> trackedList = [];
 
   bool _removeRequested = false;
   bool _overlayInserted = false;
 
+  Widget _buildOverlayWidget(BuildContext context) {
+    return LocalHeroFollower(
+      controller: controller,
+      child: _buildShuttle(context),
+    );
+  }
+
+  Widget _buildShuttle(BuildContext context) {
+    assert(trackedList.isNotEmpty);
+    final firstTracked = trackedList[0];
+    final localHero = firstTracked.localHero;
+    return localHero.flightShuttleBuilder?.call(
+          firstTracked.context,
+          controller.view,
+          localHero.child,
+        ) ??
+        localHero.child;
+  }
+
   void addOverlay(BuildContext context) {
+    // TODO: Introduce an Overlay at scope instead of relying on Navigator Overlay
     final OverlayState overlayState = Overlay.of(context);
 
     SchedulerBinding.instance.addPostFrameCallback((_) {
       if (!_removeRequested) {
-        overlayState.insert(overlayEntry);
+        overlayState.insert(_overlayEntry);
         _overlayInserted = true;
       }
     });
@@ -159,7 +176,7 @@ class _LocalHeroTracker {
   void removeOverlay() {
     _removeRequested = true;
     if (_overlayInserted) {
-      overlayEntry.remove();
+      _overlayEntry.remove();
     }
   }
 }
